@@ -1,0 +1,29 @@
+# Data — NEVER commit. ASLLRP redistribution is prohibited by its license.
+data/
+!data/.gitkeep
+*.faiss
+*.index
+*.npy
+
+# Secrets
+.env
+
+# Private / PII — never commit. Real contributor names, emails, and roles.
+docs/AUTHORS.local.md
+
+# Source documents that contain personal names (proposal, lit-review export).
+# Keep these locally; do not publish to the public remote.
+*.pdf
+
+# Runs
+results/**/raw/
+results/**/*.jsonl
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/

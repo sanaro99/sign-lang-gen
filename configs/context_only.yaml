@@ -1,0 +1,24 @@
+# CONTRIBUTION 2 in isolation: paragraph context, static examples.
+name: context_only
+dataset: aslg_pc12
+split: test
+n_examples: 200
+static_shots: 8
+constrain_vocab: true
+gloss_prompt: context_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: false
+
+context:
+  enabled: true
+  window_before: 2
+  window_after: 1
+  include_prior_glosses: true

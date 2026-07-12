@@ -1,0 +1,22 @@
+# Reproduce Zhang et al. (CHI 2025) Module 1. Static few-shot, sentence-isolated.
+# Target: BLEU-4 ~= 0.276 (theirs, on their ASLLRP split — ours will differ; say so).
+name: baseline
+dataset: aslg_pc12
+split: test
+n_examples: 200
+static_shots: 8          # paper used ~1474-1494 via "multi-prompting"; see docs/decision_log.md
+constrain_vocab: true
+gloss_prompt: baseline_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13   # paper's exact snapshot — may be deprecated
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: false
+
+context:
+  enabled: false
