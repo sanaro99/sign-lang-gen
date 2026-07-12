@@ -34,9 +34,19 @@ def _prompt_hash(name: str) -> str:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
+    # Optional overrides (do not mutate the tracked YAML): run cheaply/locally without editing configs.
+    ap.add_argument("--provider", help="override llm.provider (e.g. 'open' for a local Ollama model)")
+    ap.add_argument("--model", help="override llm.model (e.g. 'gemma3:4b')")
+    ap.add_argument("--n-examples", type=int, help="override n_examples (smaller = faster/cheaper)")
     args = ap.parse_args()
 
     cfg = ExperimentConfig.from_yaml(args.config)
+    if args.provider:
+        cfg.llm.provider = args.provider
+    if args.model:
+        cfg.llm.model = args.model
+    if args.n_examples is not None:
+        cfg.n_examples = args.n_examples
     run_id = f"{cfg.name}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
     out_dir = RESULTS / run_id
     out_dir.mkdir(parents=True, exist_ok=True)

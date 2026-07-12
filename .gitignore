@@ -15,7 +15,8 @@ docs/AUTHORS.local.md
 # Keep these locally; do not publish to the public remote.
 *.pdf
 
-# Runs
+# Runs — per-run output dirs stay local; only digestible CSVs (e.g. results/summary.csv) are committed.
+results/*/
 results/**/raw/
 results/**/*.jsonl
 

@@ -9,7 +9,17 @@ of the final report — future-us will not remember why we did any of this.
 | 2026-07-11 | Start on ASLG-PC12; request ASLLRP access in parallel | ASLG-PC12 is instantly available and lets us build the pipeline this week. ASLLRP is what the paper actually used and is needed for a faithful baseline. | team |
 | 2026-07-11 | `static_shots: 8` in the baseline config, not ~1,474 | Their full pool needed "multi-prompting" batching. Running that faithfully is expensive. **Open question — resolve before Week 6:** does our baseline use 8 shots (cheap, but not the paper's baseline) or reproduce multi-prompting (faithful, costly)? Recommend: run both, report both. An 8-shot static baseline is arguably a *strawman* that flatters our RAG condition. | team |
 | 2026-07-11 | Pin `gpt-4o-2024-05-13`; keep an open-model path | The paper's snapshot may be deprecated mid-quarter. If it disappears, our baseline is unreproducible. | team |
-| | | | |
+| 2026-07-12 | Work order: prerequisites → RAG → context → (optional) reordering | Gloss conventions/eval must be trustworthy before any number; sequence keeps each result defensible. | team |
+| 2026-07-12 | Position the **context buffer** as the primary novelty; **reframe RAG** honestly | Landscape review: no prior work applies discourse/paragraph context to text→gloss *production*, but RAG-for-gloss exists (Bangla, arXiv 2511.08507) + MT example selection. RAG delta = first-for-ASL + NMM-integrated + beats Zhang's random multi-prompting. | team |
+| 2026-07-12 | Add an **optional reordering pass** (Phase 3 / M3.5) | Gloss ordering (English word order in gloss) is the best-documented LLM failure (Guo/Li/Cohn, NeurIPS 2025). | team |
+| 2026-07-12 | **Metric hygiene:** fixed-tokenization SacreBLEU + a semantic metric + a contrastive discourse set; don't lead with corpus BLEU | Corpus BLEU barely moves for the context contribution and undersells it; synthetic-gloss inflation on ASLG-PC12. Prefer ASLLRP for credible claims. | team |
+| 2026-07-12 | **De-duplicated split** to guard RAG against leakage | Retrieving near-duplicates of test items inflates BLEU without real generalization. | team |
+| 2026-07-12 | Align gloss conventions to ASLG-PC12 **before** any BLEU | Confirmed on real data: corpus uses `X-I`/`DESC-`/kept-punctuation vs. our prompt's `IX`/dropped punctuation; mismatch penalizes the baseline on notation alone. | team |
+| 2026-07-12 | Soften the ISL claim | Safe: "no *large, public, Deaf-produced* ISL gloss corpus exists." Small expert-built sets do (e.g. IJSAT 2025). Update `isl_extension.md` + `ATTRIBUTION.md`. | team |
+| 2026-07-12 | BLEU uses `sacrebleu` with `tokenize="none"` | Gloss is already whitespace-tokenized; exact matching keeps `X-I`/`DESC-…`/`fs-…` and punctuation whole. Default `13a` would re-split on hyphens and change scores on notation alone. | team |
+| 2026-07-12 | De-duplicated, leakage-filtered split (`download_data.py`) | Exact-dedup + drop pool items ≥0.9 cosine to any test item. Confirmed live: retrieval had returned near-identical pool sentences, inflating RAG BLEU. Test kept contiguous to preserve weak discourse adjacency. | team |
+| 2026-07-12 | 4-condition comparison uses a **matched 8-example budget** (static vs retrieved) | Isolates the effect of *retrieval* and *context* cleanly. Paper-faithful ~1,474-shot multi-prompting is a separate, later comparison — not needed for the internal ablation. | team |
+| 2026-07-12 | First comparison runs on **local `gemma3:4b`** (Ollama), not gpt-4o | Free, and internally consistent (same model across all four conditions). gpt-4o numbers await a key/budget; local numbers are labeled preliminary. | team |
 
 ## Open questions
 

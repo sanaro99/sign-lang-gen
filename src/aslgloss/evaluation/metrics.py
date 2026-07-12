@@ -20,8 +20,14 @@ from ..config import NMM_LABELS
 
 
 def corpus_bleu(hypotheses: list[str], references: list[str]) -> float:
-    """Corpus BLEU-4 (sacrebleu), rescaled to 0–1 to match the paper's 0.276 target."""
-    return sacrebleu.corpus_bleu(hypotheses, [references]).score / 100.0
+    """Corpus BLEU-4 (sacrebleu), rescaled to 0–1 to match the paper's 0.276 target.
+
+    Uses `tokenize="none"`: our gloss is already whitespace-tokenized and we want EXACT token
+    matching, so hyphenated tokens (`X-I`, `DESC-IMPORTANT`, `fs-WORD`) and punctuation stay whole
+    instead of being re-split by sacrebleu's default `13a` tokenizer (which would inflate/deflate
+    the score on notation alone). See docs/gloss_conventions.md.
+    """
+    return sacrebleu.corpus_bleu(hypotheses, [references], tokenize="none").score / 100.0
 
 
 def nmm_scores(preds: list[dict], golds: list[dict]) -> dict:

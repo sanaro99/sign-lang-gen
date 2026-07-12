@@ -1,81 +1,81 @@
 # Gloss Conventions
 
-The written rules our system's gloss output is supposed to follow, and why they have to match the
-dataset's rules exactly.
+The written rules our system's gloss output must follow, why they have to match the dataset, and the
+important catch about what these particular conventions do and do not represent.
 
-> **Status:** several rules below are marked **PROVISIONAL** — they state our intended convention but
-> have **not yet been verified against ASLG-PC12's actual tokenization** on a real sample. Verifying
-> and finalizing this file is a Week-6 blocker (see `ROADMAP.md` and `docs/decision_log.md`).
+> **Status (2026-07-12): VERIFIED against ASLG-PC12 on a real 10-example sample.** The rules below are
+> confirmed, not provisional. They describe the **ASLG-PC12 corpus style**, which our bring-up baseline
+> targets so BLEU is meaningful. See `docs/decision_log.md` (2026-07-12 entries) and
+> `docs/landscape_generative_slg.md`.
 
 ---
 
 ## In plain words
 
-**"Gloss"** is a way of writing down signs using CAPITALIZED English words — one word per sign — in
-the order a signer would actually sign them. It is *not* English. For example, the English sentence
-*"I do not like coffee"* might be glossed `COFFEE ME LIKE NOT`.
+**"Gloss"** normally means writing signs as CAPITALIZED words in the order a signer would sign them.
+But the dataset we start with (ASLG-PC12) does **not** contain real ASL. Its "gloss" was produced by a
+*rule* that walks through the English sentence, keeps the English word order, shortens each word to its
+base form, and tags pronouns and describing-words with little prefixes. So `"I voted against this
+report."` becomes `X-I VOTE AGAINST THIS REPORT .` — recognizably still English order, just relabeled.
 
-Here's the catch that makes this document necessary: we grade our system by comparing its gloss to a
-"correct" gloss from a dataset, using a score called **BLEU** that basically counts matching words in
-matching order. If the dataset writes a sign one way (say `IX-1`) and our system writes it another
-way (say `ME`), BLEU marks it wrong **even when the meaning is identical** — purely because the
-spellings differ. So before any score means anything, our writing rules have to line up with the
-dataset's writing rules. That alignment is what this file pins down.
+Why does that matter? Because we grade the machine by comparing its output to this dataset's output.
+If our machine produced *real* ASL (which reorders words and drops more of them), it would score badly
+against ASLG-PC12 — not because it's wrong, but because the dataset isn't real ASL. So for this
+**warm-up** stage we deliberately tell the model to imitate ASLG-PC12's style. When we later get the
+real, Deaf-produced dataset (ASLLRP), we'll switch to real-ASL rules. **This file documents the warm-up
+conventions and is explicit that they are not real ASL.**
 
 ---
 
 ## Why conventions must match the reference corpus
 
-BLEU-4 (via `sacrebleu`, in `src/aslgloss/evaluation/metrics.py`) is a surface n-gram overlap metric.
-It rewards **string-identical tokens in the same order**. Two glosses that are semantically identical
-but tokenized differently (`DON'T` vs `NOT`; `IX` vs `IX-1`; `COFFEE` vs `coffee`) score as
-mismatches. Therefore:
+BLEU-4 (via `sacrebleu`, in `src/aslgloss/evaluation/metrics.py`) rewards **string-identical tokens in
+the same order**. If the corpus writes `X-I` and the model writes `IX` (or `ME`), or the corpus keeps a
+`.` and the model drops it, BLEU counts a miss even when meaning is identical. Therefore:
 
-> **Our gloss conventions must match ASLG-PC12's tokenization, or the BLEU comparison is meaningless.**
-> This is open question #4 in `docs/decision_log.md`.
+> **Our prompt conventions must match ASLG-PC12, or the BLEU comparison is meaningless** — decision-log
+> open question #4, now resolved for the bring-up phase.
 
-The model is steered toward these conventions two ways: (1) the instruction block in
-`prompts/baseline_gloss.md`, and (2) the in-context examples themselves (the model is told to *"match
-the style, tokenization, and conventions of the examples you are given"*). The vocabulary constraint
-in `src/aslgloss/baseline/vocab.py` then flags any output token outside the study-set vocabulary.
+Steering happens two ways: the instruction block in `prompts/baseline_gloss.md` /
+`prompts/context_gloss.md`, and the retrieved in-context examples (the model is told to match their
+style). `src/aslgloss/baseline/vocab.py` then flags any output token outside the pool vocabulary.
 
----
+## The conventions (ASLG-PC12 style — VERIFIED)
 
-## The conventions
+| # | Rule | Example |
+|---|---|---|
+| 1 | UPPERCASE tokens, single line, no punctuation stripping of `,` `.` | — |
+| 2 | **Keep source English word order** (no ASL reordering) | `i think it is important` → `X-I THINK X-IT BE DESC-IMPORTANT` |
+| 3 | **Lemmatize** to base form | `voted` → `VOTE`; `problems` → `PROBLEM`; `opposed` → `OPPOSE` |
+| 4 | **Drop** articles (`a`/`an`/`the`) and the preposition **`of`** | `the creation of the eeas` → `CREATION EEAS` |
+| 5 | **Keep** copula `BE`, modals (`WILL`, `MUST`, `SHOULD`), other prepositions (`IN`,`ON`,`TO`,`WITH`,`INTO`) | `it is` → `X-IT BE`; `should also` → `SHOULD DESC-ALSO` |
+| 6 | **Pronouns → `X-` prefix**; possessive `X-MY` / `X-POSS` | `we` → `X-WE`; `group's` → `GROUP X-POSS` |
+| 7 | **Descriptors (adj/adv) → `DESC-` prefix** | `external` → `DESC-EXTERNAL`; `still` → `DESC-STILL` |
+| 8 | Numbers stay digits | `2013` → `2013` |
+| 9 | **Punctuation kept** as separate tokens | `report .` → `REPORT .` |
+| 10 | Fingerspell unknown proper nouns as `fs-WORD` | (vocab constraint treats `fs-` as always valid) |
+| 11 | Whitespace tokenization (`str.split()`), consistent with `vocab.py` and BLEU | — |
 
-These reconcile `prompts/baseline_gloss.md`, `prompts/context_gloss.md`, and the OOV logic in
-`baseline/vocab.py`.
+## The load-bearing caveat (must appear in the report)
 
-| # | Rule | Status | Notes / where enforced |
-|---|---|---|---|
-| 1 | **Tokens are UPPERCASE** English words standing for signs. | Stable | Prompt rule; `oov_tokens` is case-sensitive. |
-| 2 | **Follow ASL grammar, not English word order.** Prefer topic–comment; time markers first. | Stable (intent) | Prompt rule. Correctness is an error-analysis category (`topic_comment`), not a tokenization rule. |
-| 3 | **Drop English function words** ASL does not sign (articles, copulas, most auxiliaries). | PROVISIONAL | Must confirm ASLG-PC12 drops the same set; mismatches inflate/deflate BLEU. |
-| 4 | **Do not transliterate word-for-word.** Signed English ≠ ASL. | Stable (intent) | Prompt rule. |
-| 5 | **Indexing / pointing → `IX`.** | PROVISIONAL | Confirm whether ASLG-PC12 uses `IX`, `IX-1`, `PRO`, etc. If the corpus differs, adopt the corpus form. |
-| 6 | **Negation → `NOT`.** | PROVISIONAL | The error heuristic `NEG` (`evaluation/error_analysis.py`) already keys on negation; confirm the corpus token. |
-| 7 | **Out-of-vocabulary proper nouns → fingerspelled as `fs-WORD`.** | Stable | `oov_tokens` explicitly ignores any token starting with `fs-`; the vocab constraint treats fingerspelling as always-valid. |
-| 8 | **Output is a single line**, no punctuation, no preamble, no explanation. | Stable | Prompt rule; `GlossGenerator.generate` takes only the first line and strips a leading `Gloss:`. |
-| 9 | **Whitespace tokenization.** Tokens are split on spaces. | Stable | Both `build_gloss_vocab` and `oov_tokens` use `str.split()`; BLEU tokenization must be consistent with this. |
-
----
-
-## Verification checklist (Week 6)
-
-Before any BLEU number goes in the report, confirm on a real ASLG-PC12 sample:
-
-- [ ] Sample 50–100 corpus gloss strings and record their **actual** tokens for: indexing, negation,
-      function-word dropping, and fingerspelling notation.
-- [ ] Reconcile rules 3, 5, 6 above with what the corpus actually does; update this table and, if
-      needed, `prompts/baseline_gloss.md`.
-- [ ] Confirm `sacrebleu`'s tokenizer does not silently re-split our tokens (e.g. on hyphens in
-      `fs-WORD` or `IX-1`). If it does, choose a tokenizer or pre-tokenization that preserves them.
-- [ ] Record the final decision in `docs/decision_log.md`.
+Rules 2, 3, 6, 7 mean the ASLG-PC12 target is **lemmatized, English-order pseudo-gloss with
+morphological prefixes — not real ASL.** Making our model reproduce it turns the "baseline" into an
+LLM imitation of a POS-tagging rule. That is acceptable *only* as pipeline bring-up and a
+BLEU-reproduction sanity check. It does **not** demonstrate ASL quality (cf. Yin et al. 2021; Desai et
+al. 2024). Real-ASL evaluation waits for **ASLLRP** (Deaf-produced), at which point a separate
+real-ASL prompt (topic-comment reordering, dropped copula, `IX` indexing, `NOT` negation) replaces the
+conventions above.
 
 ## Relationship to the paper
 
-Zhang et al. constrained Module 1's output to a **3,915-entry ASLLRP-derived word–gloss dictionary**
-and handled **43 OOV words by fingerspelling**. We approximate the dictionary constraint by building a
-vocabulary from our example pool (`build_gloss_vocab`). When ASLLRP access arrives, the faithful
-baseline should adopt the paper's dictionary and its exact gloss conventions (Appendix D) — at which
-point this file must be updated to match.
+Zhang et al. constrained Module 1 to a 3,915-entry ASLLRP-derived word–gloss dictionary and handled 43
+OOV words by fingerspelling. We approximate the constraint with a pool-derived vocabulary
+(`build_gloss_vocab`). Their targets (BLEU-4 ≈ 0.276; NMM P 0.91 / R 0.97) were computed on ASLLRP with
+their preprocessing and are **not directly comparable** to our ASLG-PC12 numbers — report that plainly.
+
+## Remaining checks (before Week 6)
+
+- [x] **Done (2026-07-12):** BLEU uses `sacrebleu` with `tokenize="none"`, so our whitespace tokens
+      (`X-I`, `DESC-IMPORTANT`, `fs-WORD`, punctuation) are matched exactly, not re-split on hyphens.
+- [ ] Spot-check the `X-POSS` / possessive handling and any rarer prefixes on a larger sample.
+- [ ] When ASLLRP lands, author the real-ASL prompt variant and a matching conventions section.

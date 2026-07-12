@@ -21,6 +21,30 @@ score on a flawed dataset is not a real win.
 
 ---
 
+## Strategic framing (from the 2025 landscape review)
+
+Full survey in `docs/landscape_generative_slg.md`. Four findings reshape how we position and evaluate:
+
+1. **The context buffer (Contribution 2) is our strongest novelty.** No published work applies a
+   paragraph/discourse context buffer to text→gloss *production* (context results exist only on the
+   sign→text side). Zhang et al. explicitly work "context-free." → invest here; evaluate on a
+   contrastive discourse set, not corpus BLEU.
+2. **RAG retrieval (Contribution 1) is worthwhile but not unprecedented — reframe it.** A Nov-2025
+   Bangla text→gloss paper already uses RAG few-shot, and retrieval-based example selection is standard
+   in MT. Our honest delta: **first for ASL, integrated with non-manual markers, beating Zhang's random
+   multi-prompting baseline.** Guard against **test-set leakage** with a de-duplicated split.
+3. **Gloss ordering is the best-documented LLM failure** (English word order in gloss) → our optional
+   **Phase 3 reordering pass** (M4.5) directly targets it.
+4. **Metric hygiene over headline BLEU.** Corpus BLEU barely moves for the context contribution and
+   undersells it. Adopt: fixed-tokenization SacreBLEU + a semantic metric + a contrastive discourse
+   set; prefer **ASLLRP (Deaf-produced)** over **ASLG-PC12 (synthetic)** for credible claims; plan
+   Deaf-led human evaluation.
+
+Also correct an overstatement: our ISL docs say "no gloss annotations exist at all" — the safe claim is
+"no *large, public, Deaf-produced* ISL gloss corpus exists" (small expert-built sets do exist).
+
+---
+
 ## Milestones
 
 ### M0 — Foundations (now → next session) · unblocks everything
@@ -32,8 +56,10 @@ Tasks:
   Recommended: run *both* and report both (an 8-shot baseline can flatter our RAG condition). → record in `docs/decision_log.md`.
 - Define a **proper, documented test split** to replace the naive tail slice in
   `scripts/download_data.py`. → `scripts/download_data.py`, `docs/decision_log.md`.
-- **Finalize `docs/gloss_conventions.md`** against a real ASLG-PC12 sample (see its checklist), so
-  BLEU is meaningful. → `docs/gloss_conventions.md`, possibly `prompts/baseline_gloss.md`.
+- **Align gloss conventions to ASLG-PC12 — confirmed mismatch.** A real-data check (2026-07-12) shows
+  the corpus uses `X-I`/`X-IT` (not our prompt's `IX`), a `DESC-` prefix for descriptors, and **keeps
+  punctuation** (our prompt drops it). Left unfixed, BLEU penalizes the baseline on notation alone.
+  → update `prompts/baseline_gloss.md` + `prompts/context_gloss.md`, finalize `docs/gloss_conventions.md`.
 - Smoke-run `make data && make index && make baseline` on `n_examples: 5` with a cheap model.
 
 **Exit criteria:** `make baseline` produces a `results/<run_id>/` with `predictions.jsonl` +
@@ -64,11 +90,16 @@ Tasks:
 - `make all-conditions` → run `baseline`, `rag_only`, `context_only`, `context_plus_rag`.
 - Run the **retrieval-order ablation** (`retrieval.order`: `similarity_desc` / `similarity_asc` /
   `random`) per KATE. Optionally test a second embedding model. → `configs/`, `retrieval/`.
+- **De-duplicated split (leakage guard):** ensure retrieved examples are not near-duplicates of test
+  items, or RAG BLEU is inflated. Report the dedup method. → `scripts/download_data.py`, `retrieval/`.
+- **Metric hygiene:** fixed-tokenization SacreBLEU (record the signature), add a semantic metric, and
+  do **not** lead with corpus BLEU for the context contribution — use the discourse set (M3).
 - `make eval` → `results/summary.csv` with BLEU-4, ROUGE/exact-match, latency p50/p95, and cost per
   condition. (ROUGE/exact-match need wiring — see tech-debt track.)
 
 **Exit criteria:** one table comparing all four conditions on quality + latency + cost; the ordering
-ablation reported; every row traceable to a manifest.
+ablation reported; the dedup guard documented; RAG framed against Zhang's random multi-prompting; every
+row traceable to a manifest.
 
 ---
 
@@ -91,13 +122,31 @@ whether context reduced discourse errors.
 
 ---
 
+### M3.5 — Gloss reordering pass (optional Phase 3)
+**Goal:** attack the best-documented LLM-gloss failure — output following English word order instead
+of sign order (Guo/Li/Cohn, NeurIPS 2025).
+
+Tasks:
+- Add a lightweight post-generation reordering/verification step: `gloss (raw) → reorder → gloss (final)`.
+  → new module under `src/aslgloss/baseline/` (e.g. `reorder.py`), wired as an optional stage in
+  `GlossGenerator.generate`.
+- Measure whether it reduces `gloss_ordering` errors (the taxonomy category) vs. the un-reordered run,
+  by condition.
+
+**Exit criteria:** reordering on/off comparison showing the change in `gloss_ordering` error rate and
+BLEU. Keep it optional — do not let it delay M1–M3. Ship as "future work" if time is short.
+
+---
+
 ### M4 — ISL feasibility extension (Week 7, EXPLORATORY)
-**Goal:** test *architectural transfer* to Indian Sign Language. **No quality score is possible** —
-no ISL gloss references exist anywhere.
+**Goal:** test *architectural transfer* to Indian Sign Language. **No benchmarked quality score is
+possible** — no large, public, Deaf-produced ISL gloss corpus exists (small expert-built sets do; they
+are not standard benchmarks and we do not have references to score against).
 
 Tasks:
 - Wire an ISL path (config + loader) using `prompts/isl_gloss.md` (SOV, sentence-final wh — marked
-  PROVISIONAL). → new `configs/isl_*.yaml`, `data/loaders.py`.
+  PROVISIONAL), optionally **seeded by a small expert-verified ISL word–gloss dictionary** (analogous
+  to the paper's ASL dictionary). → new `configs/isl_*.yaml`, `data/loaders.py`.
 - Show the retrieval + context machinery *assembles* on ISL passages; human spot-checks only, small
   n, clearly labeled. If ISL-fluent reviewers can't be arranged, **say so** rather than substituting
   our own judgment.

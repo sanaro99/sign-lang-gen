@@ -1,0 +1,5 @@
+condition,n,bleu4,avg_prompt_tokens,latency_p50_s,latency_p95_s,cost_usd,oov_rate,err_oov_fingerspell,err_pronoun_referent,prompt_hash,model,err_context_leak
+baseline,20,0.2485,860,19.67,30.15,0.0,0.85,17,3.0,92a6707584eb,gemma3:4b,
+context_only,20,0.2742,851,34.57,48.79,0.0,0.9,18,2.0,5634baa0ccc3,gemma3:4b,
+context_plus_rag,20,0.529,966,28.87,35.25,0.0,0.75,15,,5634baa0ccc3,gemma3:4b,2.0
+rag_only,20,0.4853,972,23.59,40.19,0.0,0.85,17,,92a6707584eb,gemma3:4b,
