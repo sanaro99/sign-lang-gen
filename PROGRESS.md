@@ -16,14 +16,20 @@ read this one, then `ROADMAP.md`.
 
 ## Current status
 
-**Phase:** Week 1–2 — repository setup & baseline bring-up.
+**Phase:** Bring-up complete — first (preliminary) four-condition comparison run.
 **Last updated:** 2026-07-12.
 
 - Code scaffolding is complete and modular: all `src/aslgloss/` modules, four scripts, four condition
   configs, and four prompt templates are in place.
 - **Data pipeline is built** (local, gitignored): ASLG-PC12 downloaded → `example_pool.jsonl` (20,000
-  pairs) + `test.jsonl` (1,000, naive tail split) + `example_pool.faiss` (FAISS index). **No LLM calls
-  made yet** — the baseline run awaits a provider/budget decision.
+  pairs) + `test.jsonl` (1,000, **deduplicated, leakage-guarded** split) + `example_pool.faiss`.
+- **First LLM runs done:** all four conditions ran on local `gemma3:4b` (N=20). Results in
+  `results/summary.csv` and `docs/results_report.md`. **Labeled PRELIMINARY** — small local model, N=20,
+  synthetic corpus; not the graded Week-6 evaluation.
+- **Integrity audit (2026-07-12):** verified the four runs empirically — identical 20 test items/seed
+  across conditions, on-disk split confirmed leakage-clean (0 pool neighbors ≥0.90 cosine to any test
+  item), BLEU-4 ordering stable to dropping best/worst-2 sentences, 0/20 zero-4-gram outputs. See the
+  changelog entry.
 - **Landscape review complete** → `docs/landscape_generative_slg.md`; strategy folded into `ROADMAP.md`
   and `docs/decision_log.md`.
 - Documentation baseline in place: `CLAUDE.md`, `ROADMAP.md`, `PROGRESS.md`, `docs/architecture.md`,
@@ -41,16 +47,21 @@ read this one, then `ROADMAP.md`.
   `src/aslgloss/**`; scrubbed PII to role placeholders (real names → gitignored `docs/AUTHORS.local.md`);
   removed the accidental nested `asl-gloss-stage1/` duplicate.
 
-### ▶ Next (M0 prerequisites — order: prereqs → RAG → context → optional reordering)
-- **Align gloss conventions to ASLG-PC12** (confirmed mismatch: `X-I`/`DESC-`/kept punctuation vs. our
-  prompt's `IX`/dropped) → edit `prompts/baseline_gloss.md`, `prompts/context_gloss.md`, finalize
-  `docs/gloss_conventions.md`. Blocks any trustworthy BLEU.
-- Decide **baseline fairness** (8-shot vs. paper's ~1,474-shot multi-prompting) and log it.
-- Define a **documented, de-duplicated test split** (replace the tail slice in `download_data.py`).
-- Then run the first baseline (provider/budget TBD by the team).
+### ▶ Next (toward a graded result — order: baseline fairness → discourse probe → M1 clean run)
+- Decide **baseline fairness** (8-shot vs. paper's ~1,474-shot multi-prompting) and log it — the static
+  8-shot baseline is currently a weak comparator that flatters RAG. **Still open.**
+- Build the **hand-curated discourse probe set** (M3) so the context contribution can be honestly
+  evaluated (auto-chunked paragraphs aren't real discourse).
+- Run **M1**: a full baseline on a stronger model (gpt-4o and/or ASLLRP) — the preliminary local
+  numbers are not comparable to the paper's.
+
+### ✅ Recently done (M0 prerequisites)
+- **Gloss conventions aligned to ASLG-PC12** (`X-I`/`DESC-`/kept punctuation) → `prompts/*`, `docs/gloss_conventions.md`.
+- **Documented, deduplicated, leakage-guarded split** replaces the naive tail slice in `download_data.py`.
+- **Exact-token BLEU** (`tokenize="none"`) so `X-I`/`DESC-…`/`fs-…`/punctuation match whole.
 
 ### ⏳ In progress
-- *(none — M0 not started yet)*
+- *(none active — awaiting the team's call on baseline fairness / discourse probe / M1)*
 
 ### 🚧 Blocked / waiting
 - **ASLLRP faithful baseline** — waiting on Rutgers DAI access request. `load_asllrp` is a stub;
@@ -77,6 +88,16 @@ read this one, then `ROADMAP.md`.
 
 Newest first. One entry per meaningful change; keep it short.
 
+- **2026-07-12** — **Integrity audit of the four-condition numbers** (no re-run; verification only).
+  Confirmed from the manifests + on-disk data: all four runs used the **same 20 test items in the same
+  order**, same seed (7), same model, same git SHA. Empirically re-measured leakage on the split the
+  runs actually used — **0/1000** test items (and **0/20** scored) have a pool neighbor ≥0.90 cosine;
+  max among the scored 20 is 0.874 — so the RAG gains are **not** inflated by near-duplicate leakage,
+  even though the dedup *code* was committed after the run SHA (built from the working tree first).
+  BLEU-4 ordering (`baseline < context_only < rag_only < context_plus_rag`) is **stable** to dropping
+  the best-2 and worst-2 sentences per condition, and **0/20** outputs have zero 4-gram overlap, so the
+  scores rest on real signal, not a couple of lucky matches. Corrected stale status headers in
+  `PROGRESS.md`/`ROADMAP.md` that still said "nothing has been run."
 - **2026-07-12** — Trustworthiness fixes + first four-condition comparison. Added a de-duplicated,
   leakage-guarded split (`download_data.py`), exact-token BLEU (`metrics.py`, `tokenize="none"`), and
   local-run overrides (`run_experiment.py`). Ran conditions on local `gemma3:4b`, N=20, deduped split:

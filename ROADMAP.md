@@ -4,8 +4,10 @@ The plan for the coming weeks. Milestones follow the independent-study proposal;
 working version the team executes against. Pair it with `PROGRESS.md` (status) and
 `docs/decision_log.md` (why).
 
-*As of 2026-07-12 the project is at **Week 1–2** (repository setup / baseline bring-up). Nothing has
-been run yet — `data/` and `results/` are empty by design.*
+*As of 2026-07-12 the pipeline is built and a **preliminary four-condition comparison has been run**
+(local `gemma3:4b`, N=20, deduplicated split) — see `PROGRESS.md` and `docs/results_report.md`. These
+are exploratory bring-up numbers, not the graded Week-6 evaluation. M1 (a full baseline on a stronger
+model) and M3 (the discourse probe set) remain the blocking prerequisites for any headline result.*
 
 ---
 
