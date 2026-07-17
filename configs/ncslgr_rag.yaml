@@ -1,0 +1,30 @@
+# Real-ASL testbed on NCSLGR (Boston University / Neidle; the ASLLRP family).
+# NCSLGR gloss uses real ASLLRP conventions -> use the real-ASL prompt, NOT baseline_gloss.md,
+# and retrieve real example pairs so the notation is taught in-context.
+# HONESTY: BLEU here is PRELIMINARY (provisional prompt; small n; not the paper's ASLLRP split).
+# NCSLGR is publicly mirrored but license terms are unstated -> data stays local, never committed.
+name: ncslgr_rag
+dataset: ncslgr
+data_dir: data/processed/ncslgr   # built by: python scripts/download_data.py --dataset ncslgr
+split: test
+n_examples: 50           # NCSLGR is small; keep runs cheap
+static_shots: 8
+constrain_vocab: false   # no 3,915-entry dictionary yet (that is the gated-ASLLRP Phase A4 step)
+gloss_prompt: asllrp_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: true          # retrieve real NCSLGR pairs so the model sees the true conventions
+  k: 8
+  order: similarity_desc
+  pool_path: data/processed/ncslgr/example_pool.jsonl   # built by: python scripts/download_data.py --dataset ncslgr
+  index_path: data/processed/ncslgr/example_pool.faiss
+
+context:
+  enabled: false

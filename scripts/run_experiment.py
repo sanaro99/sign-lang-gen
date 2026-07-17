@@ -38,6 +38,9 @@ def main():
     ap.add_argument("--provider", help="override llm.provider (e.g. 'open' for a local Ollama model)")
     ap.add_argument("--model", help="override llm.model (e.g. 'gemma3:4b')")
     ap.add_argument("--n-examples", type=int, help="override n_examples (smaller = faster/cheaper)")
+    ap.add_argument("--no-nmm", action="store_true",
+                    help="skip the NMM classifier call (halves LLM calls; NMM is not scored without "
+                         "gold labels anyway). Use for cheap/low-thermal gloss-only runs.")
     args = ap.parse_args()
 
     cfg = ExperimentConfig.from_yaml(args.config)
@@ -51,8 +54,8 @@ def main():
     out_dir = RESULTS / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    pool = load_example_pool("data/processed/example_pool.jsonl")
-    test = load_example_pool("data/processed/test.jsonl")
+    pool = load_example_pool(f"{cfg.data_dir}/example_pool.jsonl")
+    test = load_example_pool(f"{cfg.data_dir}/test.jsonl")
     if cfg.n_examples:
         test = test[: cfg.n_examples]
 
@@ -88,13 +91,13 @@ def main():
         vocab=vocab,
         prompt_file=cfg.gloss_prompt,
     )
-    nmm = NMMClassifier(llm, prompt_file=cfg.nmm_prompt)
+    nmm = None if args.no_nmm else NMMClassifier(llm, prompt_file=cfg.nmm_prompt)
 
     rows, prior_glosses = [], {}
     for i, ex in enumerate(test, 1):
         g = generator.generate(ex, prior_glosses=prior_glosses)
         prior_glosses[(ex.doc_id, ex.sent_idx)] = g.gloss
-        markers = nmm.classify(ex.text)
+        markers = nmm.classify(ex.text) if nmm is not None else {"_cost_usd": 0.0}
         rows.append({
             "source": ex.text,
             "reference": ex.gloss,

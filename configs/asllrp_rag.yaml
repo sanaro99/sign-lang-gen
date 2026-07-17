@@ -1,0 +1,18 @@
+# CONTRIBUTION 1 on real ASL: retrieved examples teach the ASLLRP notation in-context.
+name: asllrp_rag
+dataset: asllrp
+data_dir: data/processed/asllrp
+split: test
+n_examples: 220
+constrain_vocab: false
+gloss_prompt: asllrp_gloss.md
+nmm_prompt: baseline_nmm.md
+llm: {provider: open, model: gemma4:latest, temperature: 0.0, seed: 7}
+retrieval:
+  enabled: true
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  k: 8
+  index_path: data/processed/asllrp/example_pool.faiss
+  pool_path: data/processed/asllrp/example_pool.jsonl
+  order: similarity_desc
+context: {enabled: false}

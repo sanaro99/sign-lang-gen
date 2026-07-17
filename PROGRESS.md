@@ -16,8 +16,9 @@ read this one, then `ROADMAP.md`.
 
 ## Current status
 
-**Phase:** Bring-up complete — first (preliminary) four-condition comparison run.
-**Last updated:** 2026-07-12.
+**Phase:** Faithful-reproduction prep (plan M1) — Phase A0 complete; NMM evaluation track built;
+ASLLRP access requested and pending.
+**Last updated:** 2026-07-16.
 
 - Code scaffolding is complete and modular: all `src/aslgloss/` modules, four scripts, four condition
   configs, and four prompt templates are in place.
@@ -60,12 +61,78 @@ read this one, then `ROADMAP.md`.
 - **Documented, deduplicated, leakage-guarded split** replaces the naive tail slice in `download_data.py`.
 - **Exact-token BLEU** (`tokenize="none"`) so `X-I`/`DESC-…`/`fs-…`/punctuation match whole.
 
+### ✅ Recently done (2026-07-16 — faithful-reproduction prep, no ASLLRP needed)
+- **Phase A0 complete:** the paper's arXiv TeX source is downloaded and mined (gitignored
+  `data/paper_src/`). Exact prompts recovered (both tasks + ablation variants + grammar-rules text);
+  preprocessing Steps 1–4 and the gloss-conventions table extracted; targets verified against the
+  primary source (BLEU-4 0.276; NMM macro P 0.91 / R 0.97, per-label breakdown known). Tracked
+  summary: `docs/primary_source_findings.md`.
+- **Major finding:** the paper's own appendix already implements RAG (anonymized embeddings,
+  top-N cosine; N=50 beat all ~1,474 examples) → contribution 1 reframed as reproduction +
+  extension across `ROADMAP.md`, `docs/landscape_generative_slg.md`, `docs/decision_log.md`.
+- **NMM P/R track built** (was: "not measured"): `evaluate.py` now scores NMM precision/recall/F1
+  (macro in `summary.csv`, per-label in `results/nmm_summary.csv`) against human gold labels when
+  `data/processed/nmm_gold.jsonl` exists, and says plainly when it doesn't. Annotation kit:
+  `docs/nmm_annotation_rubric.md` (paper-informed edge cases: sentiment ≠ negation) +
+  `scripts/nmm_annotation.py` (blank sheets → Cohen's κ → adjudication → gold merge) +
+  `src/aslgloss/evaluation/agreement.py` with tests (11 pass). **Next human step: two people fill
+  the sheets in `data/annotations/`.**
+
+### ✅ Recently done (2026-07-16 — real-ASL testbed while ASLLRP is pending)
+- **NCSLGR wired as a real-ASL testbed** (Boston University / Neidle; the ASLLRP family). ~1,875
+  **real, Deaf-produced** ASL gloss pairs, publicly mirrored (DePaul ELAN export, no video), loaded
+  by `load_ncslgr()` (stdlib + `defusedxml`, cached to gitignored `data/raw/ncslgr/`). Gloss is true
+  ASLLRP notation (`fs-`, `IX-`, `POSS-`, `#loan`, `DCL:`/`BCL:`, `5"…"`) — the honest gap ASLG-PC12
+  (synthetic) leaves. `scripts/download_data.py --dataset ncslgr` builds a **document-level** split
+  (~1,432 pool / ~249 test) into `data/processed/ncslgr/` without clobbering the ASLG-PC12 split.
+  Real-ASL prompt `prompts/asllrp_gloss.md` (PROVISIONAL) + `configs/ncslgr_rag.yaml`; parser test
+  `tests/test_ncslgr.py`. Full picture: `docs/datasets.md`. **13 tests pass.**
+  - **Honesty:** NCSLGR is *not* independent of the gated data (same project family), licence terms
+    are unstated (treated like ASLLRP — local, gitignored, never committed), and it must **not** be
+    scored with the ASLG-PC12 prompt (notation mismatch → near-zero BLEU on notation alone). Any BLEU
+    is preliminary. Its signing-based NMM tiers are a comparison only, not text-NMM gold.
+  - **PHOENIX-2014T** (real DGS gloss) evaluated and **deferred** — German makes our English→ASL
+    prompt and NMM labels inapplicable; documented as an option in `docs/datasets.md`.
+- **Fixed a real `.gitignore` bug:** the bare `data/` rule also matched `src/aslgloss/data/`, so the
+  entire data-loader module was **never tracked** (a fresh clone would fail to import). Anchored to
+  `/data/` — corpus stays ignored, module is restored to git. **Needs committing** (see below).
+
 ### ⏳ In progress
-- *(none active — awaiting the team's call on baseline fairness / discourse probe / M1)*
+- **NMM gold-label annotation** — sheets generated; needs two annotators + κ + adjudication
+  (see `docs/nmm_annotation_rubric.md`).
+- **Uncommitted:** this session's work (NCSLGR loader/split/prompt/config/docs + the `.gitignore`
+  fix that finally makes `src/aslgloss/data/` trackable) is in the working tree, not yet committed.
+
+### ✅ Recently done (2026-07-16 — ASLLRP access granted, Phase A started)
+- **DAI access approved; `load_asllrp()` implemented.** First 4 collection zips downloaded to
+  gitignored `data/dai/`. The loader parses DAI 2 `xml_extract_*.xml` (`<UTTERANCE>` → English
+  `<TRANSLATION>` + ordered `<SIGN><LABEL>` gloss; optional signing-NMM from sentence-type
+  `<NON_MANUAL>` tiers) → **156 real English↔gloss pairs** with real conventions (`fs-`, `IX-3p:i`,
+  `DCL:B"…"`, `(2h)`). `tests/test_asllrp.py`; `download_data.py --dataset asllrp` builds a split into
+  `data/processed/asllrp/`. **15 tests pass.**
+
+### ✅ Recently done (2026-07-17 — four-condition ASLLRP pilot, full 220-sentence test set)
+- **Four-condition ASLLRP evaluation on the full 220-sentence test set** (51 collections → 2,286 pairs;
+  local **gemma4**, `--no-nmm`). BLEU-4 vs. **real** Deaf-signer glosses: baseline **0.043**, rag
+  **0.042**, context **0.041**, context+rag **0.042** — **all four indistinguishable at BLEU-4's noise
+  floor; neither contribution moved the score.** Full write-up: `docs/results_report_asllrp.md`.
+  - **The earlier n=50 "RAG dominates" signal was a small-sample artifact** (question-heavy first-50
+    slice); it disappears on the full test set. Corrected here.
+  - n-gram precision falls 37 → 11 → 3 → 1 (1→4-gram) with brevity penalty ≈0.73 — objectively "right
+    vocabulary, wrong exact sequence": references carry un-generatable spatial/prosodic notation
+    (`IX-3p:i`, `SELF-3p:j`, `ns-`, `(2h)`, `5"pause"`) that no text-only model can produce. Low BLEU
+    here does NOT prove poor ASL (no Deaf-signer eval done) — and we make no quality claim either way.
+  - Heuristic error tagger (not human-coded): context buffer **cuts pronoun-referent errors 56→41** but
+    adds **context-leak (57/220)**; RAG *raises* pronoun errors (56→75). Hypothesis for Week-9 human pass.
+  - **Verdict:** reproduction ❌ (0.04 vs paper 0.276; incomplete pipeline); infrastructure ✅ (runs
+    end-to-end on real data w/ manifests); contributions ⚠️ not supported on BLEU.
 
 ### 🚧 Blocked / waiting
-- **ASLLRP faithful baseline** — waiting on Rutgers DAI access request. `load_asllrp` is a stub;
-  ASLLRP data must never be committed.
+- **Full ASLLRP corpus** — 51 of 84 SignStream files downloaded (~2,286 of ~2,119+ pairs). Export the
+  rest from the DAI the same way. ASLLRP data must never be committed.
+- **ASLLRP Sign Bank dictionary (Phase A4)** — the `data/dai/` zips are the continuous-signing corpus,
+  NOT the Sign Bank. The 3,915-entry word→gloss dictionary needs a **separate** Sign Bank download
+  (`dai.cs.rutgers.edu/dai/s/signbank`; ASLLRP Report 20).
 - **ISL feasibility (Week 7)** — needs ISL-fluent reviewer(s) for spot-checks; no gloss references
   exist, so this stays exploratory regardless.
 
@@ -79,7 +146,8 @@ read this one, then `ROADMAP.md`.
 | 2 | Proper documented test split | Current tail slice is a placeholder; no number should rest on it. |
 | 3 | Hand-curated discourse probe set (~50–100 passages) | Auto-chunked paragraphs aren't real discourse; Contribution 2 can't be honestly evaluated without this. |
 | 4 | Finalize gloss conventions vs. ASLG-PC12 tokenization | Otherwise BLEU is meaningless. |
-| 5 | Email paper authors re: sharing Module 1 prompts? | Low cost, possible payoff. |
+| 5 | ~~Email paper authors re: sharing Module 1 prompts?~~ | **Mostly moot (2026-07-16):** prompts recovered from the paper's own TeX (Phase A0). |
+| 6 | Commit transcribed paper prompts to `prompts/`, or keep verbatim text gitignored? | Repo convention says no paper text in tracked files; the reproduction needs the prompt wording. Team call. |
 | — | Fix "Kim et al." → "Guo, Li & Cohn" citation | Bibliography correctness before final report. |
 
 ---
@@ -88,6 +156,29 @@ read this one, then `ROADMAP.md`.
 
 Newest first. One entry per meaningful change; keep it short.
 
+- **2026-07-17** — **Four-condition ASLLRP pilot, FULL 220-sentence test set** (51 collections, local
+  gemma4). BLEU-4: baseline 0.043 / rag 0.042 / context 0.041 / context+rag 0.042 — **all tied; neither
+  contribution moved BLEU.** Overturns the earlier n=50 "RAG dominates" (small-sample artifact). Verdict:
+  reproduction ❌, infrastructure ✅, contributions ⚠️ unsupported on BLEU. Report:
+  `docs/results_report_asllrp.md`.
+- ~~**2026-07-17** — First four-condition ASLLRP pilot (n=50): apparent "RAG dominates" — **superseded**
+  by the full 220-sentence run above (artifact of a question-heavy 50-sentence slice).~~
+- **2026-07-16** — **Phase A0 + NMM evaluation track** (ASLLRP-independent M1 work, per
+  `docs/faithful_reproduction_plan.md` §8). Downloaded and mined the paper's arXiv TeX source
+  (gitignored `data/paper_src/`): exact prompts for both Module-1 tasks recovered (incl. the
+  multi-prompting structure — batches go in as repeated ASSISTANT messages), preprocessing
+  Steps 1–4, grammar-rules text, gloss-conventions table, and all target numbers verified
+  (BLEU-4 0.276 = data-prep + 1,474 examples + limited vocab + **no** grammar rules; NMM macro
+  0.91/0.97; figure alt-text "0.05" conditional recall shown to be a typo for ≈0.95).
+  **Discovered the paper's appendix already implements RAG** (anonymized embeddings, top-N;
+  N=50 ≈ 0.279 beats all-1,474) → reframed contribution 1 as reproduction + extension in
+  `ROADMAP.md` / landscape / decision log; context buffer stays the primary novelty. Wrote
+  `docs/primary_source_findings.md`. Built the NMM gold-label pipeline: annotation rubric
+  (`docs/nmm_annotation_rubric.md`), sheet/κ/adjudication/merge tooling
+  (`scripts/nmm_annotation.py`, `src/aslgloss/evaluation/agreement.py`), and wired
+  `nmm_scores` into `scripts/evaluate.py` (macro columns + `results/nmm_summary.csv`;
+  clean skip when no gold exists). 4 new tests; 11 total pass. End-to-end smoke-tested the
+  full sheets→κ→merge→evaluate loop on scratch data (never written to the real gold path).
 - **2026-07-12** — **Integrity audit of the four-condition numbers** (no re-run; verification only).
   Confirmed from the manifests + on-disk data: all four runs used the **same 20 test items in the same
   order**, same seed (7), same model, same git SHA. Empirically re-measured leakage on the split the

@@ -1,5 +1,9 @@
-condition,n,bleu4,avg_prompt_tokens,latency_p50_s,latency_p95_s,cost_usd,oov_rate,err_oov_fingerspell,err_pronoun_referent,prompt_hash,model,err_context_leak
-baseline,20,0.2485,860,19.67,30.15,0.0,0.85,17,3.0,92a6707584eb,gemma3:4b,
-context_only,20,0.2742,851,34.57,48.79,0.0,0.9,18,2.0,5634baa0ccc3,gemma3:4b,
-context_plus_rag,20,0.529,966,28.87,35.25,0.0,0.75,15,,5634baa0ccc3,gemma3:4b,2.0
-rag_only,20,0.4853,972,23.59,40.19,0.0,0.85,17,,92a6707584eb,gemma3:4b,
+condition,dataset,n,bleu4,avg_prompt_tokens,latency_p50_s,latency_p95_s,cost_usd,oov_rate,err_pronoun_referent,err_negation_scope,prompt_hash,model,err_context_leak,err_oov_fingerspell
+asllrp_baseline,asllrp,220,0.043,1284,2.44,6.94,0.0,0.0,56.0,3.0,fac7465a598c,gemma4:latest,,
+asllrp_context,asllrp,220,0.0406,1335,7.4,12.74,0.0,0.0,41.0,2.0,77e087967843,gemma4:latest,57.0,
+asllrp_context_rag,asllrp,220,0.0415,1335,19.14,29.35,0.0,0.0,64.0,,77e087967843,gemma4:latest,66.0,
+asllrp_rag,asllrp,220,0.0417,1276,18.36,29.16,0.0,0.0,75.0,3.0,fac7465a598c,gemma4:latest,,
+baseline,aslg_pc12,20,0.2485,860,19.67,30.15,0.0,0.85,3.0,,92a6707584eb,gemma3:4b,,17.0
+context_only,aslg_pc12,20,0.2742,851,34.57,48.79,0.0,0.9,2.0,,5634baa0ccc3,gemma3:4b,,18.0
+context_plus_rag,aslg_pc12,20,0.529,966,28.87,35.25,0.0,0.75,,,5634baa0ccc3,gemma3:4b,2.0,15.0
+rag_only,aslg_pc12,20,0.4853,972,23.59,40.19,0.0,0.85,,,92a6707584eb,gemma3:4b,,17.0
