@@ -1,0 +1,13 @@
+# CONTRIBUTION 2 on real ASL narratives (real discourse, unlike ASLG-PC12 pseudo-paragraphs).
+name: asllrp_context
+dataset: asllrp
+data_dir: data/processed/asllrp
+split: test
+n_examples: 220
+static_shots: 8
+constrain_vocab: false
+gloss_prompt: asllrp_context_gloss.md
+nmm_prompt: baseline_nmm.md
+llm: {provider: open, model: gemma4:latest, temperature: 0.0, seed: 7}
+retrieval: {enabled: false}
+context: {enabled: true, window_before: 2, window_after: 1, include_prior_glosses: true}

@@ -55,6 +55,7 @@ class LLMClient:
         """
         from openai import OpenAI
 
+        self.provider = provider
         self.model, self.temperature, self.max_tokens, self.seed = model, temperature, max_tokens, seed
         if provider == "open":
             self.client = OpenAI(
@@ -71,6 +72,10 @@ class LLMClient:
         Retries up to 4 times with exponential backoff (transient API errors). The returned
         LLMResponse carries everything a run manifest needs for the week-6 cost/latency tables.
         """
+        # Local "thinking" models (e.g. gemma4 via Ollama) route their output to a reasoning channel
+        # by default, leaving OpenAI-compat `content` empty. Disable it for the open provider so we
+        # get the gloss back. (gpt-4o rejects reasoning_effort, so only send it for `open`.)
+        extra = {"reasoning_effort": "none"} if self.provider == "open" else {}
         t0 = time.perf_counter()
         r = self.client.chat.completions.create(
             model=self.model,
@@ -79,6 +84,7 @@ class LLMClient:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             seed=self.seed,
+            **extra,
         )
         return LLMResponse(
             text=(r.choices[0].message.content or "").strip(),

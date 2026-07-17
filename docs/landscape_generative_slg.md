@@ -26,9 +26,10 @@ and fix a gloss**, which you cannot do with a hidden numerical representation. T
 a legitimate reason to choose the gloss path, and it's worth stating as a deliberate choice.
 
 The most important takeaways for us: our **paragraph-context idea is genuinely new** for this step;
-our **example-retrieval (RAG) idea is good but has already been tried elsewhere**, so we must frame it
-carefully; and **the usual scoreboard metric (BLEU) hides most of what matters**, so we need better
-ways to measure success.
+our **example-retrieval (RAG) idea was already tried — including by the very paper we reproduce**
+(discovered 2026-07-16 in their appendix; see §5), so we frame it as reproduction + extension; and
+**the usual scoreboard metric (BLEU) hides most of what matters**, so we need better ways to
+measure success.
 
 ---
 
@@ -120,10 +121,15 @@ BLEU-4 ≈ 0.276 with GPT-4o few-shot + a curated word-gloss dictionary. **Docum
 - Non-manual grammar and spatial/classifier constructions are largely beyond current LLM gloss.
 
 **Do our two contributions already exist?**
-- **RAG example-retrieval for text→gloss: partially exists.** A Nov-2025 **Bangla** paper uses RAG +
-  few-shot to retrieve similar examples for text→gloss; retrieval-based example selection is standard
-  in MT. So the *idea* is not wholly novel. **Our defensible delta:** first for **ASL**, integrated
-  with **non-manual markers**, and a controlled win over Zhang's **random multi-prompting** baseline.
+- **RAG example-retrieval for text→gloss: ALREADY EXISTS — in Zhang et al. themselves.**
+  **Correction (2026-07-16, Phase A0):** reading the paper's arXiv TeX source revealed an appendix
+  ("Additional Experiments") that implements exactly this: names→pronouns anonymization, OpenAI
+  embeddings, cosine top-N retrieval; N=50 anonymized examples (BLEU-4 ≈ 0.279) beat all ~1,474.
+  The earlier claim below ("first for ASL") is therefore **withdrawn**. A Nov-2025 **Bangla** paper
+  also uses RAG + few-shot for text→gloss; retrieval-based example selection is standard in MT.
+  **Our remaining defensible delta:** reproduction of their appendix effect + a **leakage-guarded
+  de-duplicated split** (they report none), **k-ablation, anonymization ablation, cost accounting**,
+  and **combining retrieval with the context buffer**. See `docs/primary_source_findings.md` §3.
   **Risk:** test-set leakage — retrieving near-duplicate pairs inflates BLEU; report a **de-duplicated
   split**.
 - **Paragraph/discourse context for gloss *production*: essentially a gap.** Strong context results
@@ -157,9 +163,11 @@ representative, Deaf-produced data and participatory design.
   "Lost in Translation": feed **previous-sentence gloss + a short topic cue** into the prompt. Target
   pronoun/referent consistency, topicalization, negation/NMM scope. **Evaluate on a contrastive
   discourse test set, not corpus BLEU** (which will barely move and undersell it).
-- **RAG retrieval (contribution 1) — worthwhile, reframe honestly.** Cite the Bangla RAG-gloss and
-  MT example-selection work; position as first-for-ASL + NMM-integrated + beats random multi-prompting.
-  De-duplicate to avoid leakage; ablate k and retriever.
+- **RAG retrieval (contribution 1) — now a reproduction + extension, not an invention.**
+  *(Reframed 2026-07-16 after Phase A0 — Zhang et al.'s own appendix already does anonymized-embedding
+  top-N retrieval; see §5 correction.)* Cite their appendix, the Bangla RAG-gloss, and MT
+  example-selection work. Position as: reproducing their appendix effect under a leakage-guarded
+  dedup split, plus k/anonymization ablations, cost accounting, and the retrieval×context combination.
 - **ISL transfer — exploratory only.** Qualitative demo seeded by a small expert dictionary; ISL-fluent
   review; no quality claims.
 - **Adjacent ideas:** add the **reordering pass** (our Phase 3); budget **Deaf-led evaluation**; adopt
@@ -167,8 +175,9 @@ representative, Deaf-produced data and participatory design.
   **ASLLRP over ASLG-PC12** for credible claims; consider **open-sourcing the Stage-1 pipeline** since
   Zhang et al. released none.
 
-**Bottom line:** the context buffer is the standout contribution; RAG is solid but must be framed
-against prior RAG-for-gloss and Zhang's own random baseline; ISL stays exploratory.
+**Bottom line:** the context buffer is the standout contribution; RAG is a faithful
+reproduction + extension of Zhang et al.'s own appendix experiment (framed against that, the Bangla
+RAG-gloss work, and their random multi-prompting baseline); ISL stays exploratory.
 
 ---
 

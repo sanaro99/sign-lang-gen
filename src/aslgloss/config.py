@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_RAW = ROOT / "data" / "raw"
 DATA_INTERIM = ROOT / "data" / "interim"
 DATA_PROCESSED = ROOT / "data" / "processed"
+DATA_DAI = ROOT / "data" / "dai"          # ASLLRP DAI 2 export (collection zips); gitignored, never commit
 PROMPTS = ROOT / "prompts"
 RESULTS = ROOT / "results"
 
@@ -50,7 +51,8 @@ class LLMConfig:
 @dataclass
 class ExperimentConfig:
     name: str = "baseline"
-    dataset: str = "aslg_pc12"         # aslg_pc12 | asllrp | isl
+    dataset: str = "aslg_pc12"         # aslg_pc12 | ncslgr | asllrp | isl
+    data_dir: str = "data/processed"   # holds example_pool.jsonl + test.jsonl; per-dataset subdir avoids clobbering
     split: str = "test"
     n_examples: int | None = 200       # None = full split
     static_shots: int = 8              # used when retrieval is disabled

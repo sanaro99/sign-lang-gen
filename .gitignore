@@ -1,6 +1,8 @@
 # Data — NEVER commit. ASLLRP redistribution is prohibited by its license.
-data/
-!data/.gitkeep
+# Anchored with a leading slash so ONLY the top-level corpus dir is ignored — a bare `data/`
+# also matched src/aslgloss/data/ and silently kept the entire data-loader module out of git.
+/data/
+!/data/.gitkeep
 *.faiss
 *.index
 *.npy
@@ -28,3 +30,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 .ipynb_checkpoints/
+
+# Local scratch / rendered artifacts (not source)
+PROGRESS.html
+scratch_baseline.log

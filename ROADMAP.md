@@ -31,10 +31,13 @@ Full survey in `docs/landscape_generative_slg.md`. Four findings reshape how we 
    paragraph/discourse context buffer to text→gloss *production* (context results exist only on the
    sign→text side). Zhang et al. explicitly work "context-free." → invest here; evaluate on a
    contrastive discourse set, not corpus BLEU.
-2. **RAG retrieval (Contribution 1) is worthwhile but not unprecedented — reframe it.** A Nov-2025
-   Bangla text→gloss paper already uses RAG few-shot, and retrieval-based example selection is standard
-   in MT. Our honest delta: **first for ASL, integrated with non-manual markers, beating Zhang's random
-   multi-prompting baseline.** Guard against **test-set leakage** with a de-duplicated split.
+2. **RAG retrieval (Contribution 1) is a reproduction + extension, not an invention.**
+   *(Updated 2026-07-16 after Phase A0: Zhang et al.'s own appendix already implements
+   anonymized-embedding top-N retrieval — N=50 beat all ~1,474 examples. The earlier "first for ASL"
+   claim is withdrawn; see `docs/primary_source_findings.md` §3.)* A Nov-2025 Bangla text→gloss paper
+   also uses RAG few-shot; example selection is standard in MT. Our honest delta: **reproducing their
+   appendix effect under a leakage-guarded de-duplicated split (they report none), k/anonymization
+   ablations, cost accounting, and combining retrieval with the context buffer.**
 3. **Gloss ordering is the best-documented LLM failure** (English word order in gloss) → our optional
    **Phase 3 reordering pass** (M4.5) directly targets it.
 4. **Metric hygiene over headline BLEU.** Corpus BLEU barely moves for the context contribution and
@@ -100,7 +103,8 @@ Tasks:
   condition. (ROUGE/exact-match need wiring — see tech-debt track.)
 
 **Exit criteria:** one table comparing all four conditions on quality + latency + cost; the ordering
-ablation reported; the dedup guard documented; RAG framed against Zhang's random multi-prompting; every
+ablation reported; the dedup guard documented; RAG framed against both Zhang's random multi-prompting
+baseline and their own appendix RAG (see `docs/primary_source_findings.md` §3); every
 row traceable to a manifest.
 
 ---
@@ -189,7 +193,8 @@ each needs its own small PR + test.
       `NMMClassifier.classify` silently returns all-False on malformed JSON — at least log these.
 - [ ] **Update / extend the `PRICING` table** in `llm/client.py` when models change (unknown model →
       cost silently 0.0).
-- [ ] **Implement `load_asllrp`** once Rutgers DAI access arrives (never commit ASLLRP data).
+- [x] **Implement `load_asllrp`** — done 2026-07-16 (DAI access granted; parses DAI 2 XML exports;
+      never commit ASLLRP data). Remaining: full-corpus export + Step-1/2 cleaning + Sign Bank dictionary.
 
 ---
 
