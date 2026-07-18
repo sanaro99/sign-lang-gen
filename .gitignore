@@ -16,6 +16,7 @@ docs/AUTHORS.local.md
 # Source documents that contain personal names (proposal, lit-review export).
 # Keep these locally; do not publish to the public remote.
 *.pdf
+*.docx
 
 # Runs — per-run output dirs stay local; only digestible CSVs (e.g. results/summary.csv) are committed.
 results/*/
