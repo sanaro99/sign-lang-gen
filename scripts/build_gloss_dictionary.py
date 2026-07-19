@@ -72,8 +72,8 @@ def main() -> None:
     args = ap.parse_args()
     d = Path(args.data_dir)
 
-    pool = [json.loads(l) for l in (d / "example_pool.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
-    test = [json.loads(l) for l in (d / "test.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
+    pool = [json.loads(ln) for ln in (d / "example_pool.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
+    test = [json.loads(ln) for ln in (d / "test.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
 
     word2gloss, gloss_freq = build(pool)
     entries = {
@@ -112,7 +112,7 @@ def main() -> None:
     print(f"  * {word_cov:.0%} of test-input words have a dictionary entry (prompt-glossary reach).")
     print(f"  * {lex_cov:.0%} of *lexical* reference gloss tokens are in our vocab;")
     print(f"    but {nonlex_share:.0%} of reference tokens are NON-lexical (IX-/SELF-/prosody) and")
-    print(f"    are not text-derivable from any dictionary — the BLEU ceiling this cannot lift.")
+    print("    are not text-derivable from any dictionary — the BLEU ceiling this cannot lift.")
 
 
 if __name__ == "__main__":

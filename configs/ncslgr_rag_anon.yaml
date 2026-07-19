@@ -1,0 +1,31 @@
+# Anonymization ablation (gap G8): identical to ncslgr_rag.yaml except retrieval.anonymize.
+# Reproduces the Zhang et al. appendix choice — names -> pronouns BEFORE embedding, because
+# proper names hijack cosine similarity (their N=50 anonymized beat all ~1,474 examples).
+# Build the paired index first:  python scripts/build_index.py --config configs/ncslgr_rag_anon.yaml
+# Compare against ncslgr_rag (anonymize: false) on the SAME split; report delta + bootstrap CI.
+name: ncslgr_rag_anon
+dataset: ncslgr
+data_dir: data/processed/ncslgr
+split: test
+n_examples: 50
+static_shots: 8
+constrain_vocab: false
+gloss_prompt: asllrp_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: true
+  k: 8
+  order: similarity_desc
+  anonymize: true                                        # <- the one difference vs ncslgr_rag
+  pool_path: data/processed/ncslgr/example_pool.jsonl
+  index_path: data/processed/ncslgr/example_pool.anon.faiss   # distinct index, same pool file
+
+context:
+  enabled: false

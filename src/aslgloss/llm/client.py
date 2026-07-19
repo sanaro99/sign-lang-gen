@@ -66,11 +66,13 @@ class LLMClient:
             self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(min=1, max=20))
-    def complete(self, system: str, user: str) -> LLMResponse:
-        """Run one chat completion and return text plus token/latency/cost accounting.
+    def complete_messages(self, messages: list[dict]) -> LLMResponse:
+        """Run one chat completion over an explicit message list, with token/latency/cost accounting.
 
-        Retries up to 4 times with exponential backoff (transient API errors). The returned
-        LLMResponse carries everything a run manifest needs for the week-6 cost/latency tables.
+        This is the entry point for the paper's "multi-prompting" structure (gap G4): Phase A0
+        recovered that Zhang et al. inject their ~1,474 in-context examples as a SEQUENCE OF
+        REPEATED ASSISTANT MESSAGES, one per batch — not by iterative re-querying. See
+        docs/primary_source_findings.md §2. Retries up to 4 times with exponential backoff.
         """
         # Local "thinking" models (e.g. gemma4 via Ollama) route their output to a reasoning channel
         # by default, leaving OpenAI-compat `content` empty. Disable it for the open provider so we
@@ -79,8 +81,7 @@ class LLMClient:
         t0 = time.perf_counter()
         r = self.client.chat.completions.create(
             model=self.model,
-            messages=[{"role": "system", "content": system},
-                      {"role": "user", "content": user}],
+            messages=messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             seed=self.seed,
@@ -93,3 +94,8 @@ class LLMClient:
             latency_s=time.perf_counter() - t0,
             model=self.model,
         )
+
+    def complete(self, system: str, user: str) -> LLMResponse:
+        """Convenience wrapper: one system + one user message (retry lives in complete_messages)."""
+        return self.complete_messages([{"role": "system", "content": system},
+                                       {"role": "user", "content": user}])

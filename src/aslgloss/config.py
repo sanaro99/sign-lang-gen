@@ -28,6 +28,10 @@ class RetrievalConfig:
     pool_path: str = "data/processed/example_pool.jsonl"
     # KATE (Liu et al. 2022) leaves ordering unexplored; we ablate it.
     order: str = "similarity_desc"  # similarity_desc | similarity_asc | random
+    # Zhang et al.'s appendix anonymizes names -> pronouns before embedding (names hijack
+    # similarity). Ablation knob; heuristic implementation in retrieval/anonymize.py.
+    # When True, build the index with the SAME flag and point index_path at a distinct file.
+    anonymize: bool = False
 
 
 @dataclass
@@ -56,6 +60,11 @@ class ExperimentConfig:
     split: str = "test"
     n_examples: int | None = 200       # None = full split
     static_shots: int = 8              # used when retrieval is disabled
+    # Paper's recovered "multi-prompting" (Phase A0): examples injected as repeated ASSISTANT
+    # messages, `shot_batch_size` pairs per message. Enables the faithful ~1,474-static-shot
+    # baseline the 8-shot comparator can't represent (open question #1). Off by default.
+    shots_as_messages: bool = False
+    shot_batch_size: int = 200
     constrain_vocab: bool = True       # paper constrains output to the word-gloss dictionary
     gloss_prompt: str = "baseline_gloss.md"
     nmm_prompt: str = "baseline_nmm.md"

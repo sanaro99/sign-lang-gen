@@ -1,10 +1,20 @@
 """Score every run and emit the Week 6 results table.
 
-BLEU-4 is always reported. NMM precision/recall (the paper's second metric: P 0.91 / R 0.97)
-is reported only when human-adjudicated gold labels exist at --nmm-gold
-(produced by scripts/nmm_annotation.py; see docs/nmm_annotation_rubric.md). Without gold
-labels the NMM columns are simply absent — model self-predictions are never scored
-against themselves.
+Reported per run: BLEU-4 with its parts (1-gram precision + brevity penalty — they discriminate
+where BLEU-4 floors out), chrF, exact-match, ROUGE-L, latency, cost, and error tags. For
+real-ASL datasets (ASLLRP-notation: ncslgr/asllrp) a SECONDARY "reachable-token" score pair
+(bleu4_norm / chrf_norm) is added, computed after `normalize_real_asl` strips notation that is
+un-generatable from English text (spatial loci, handedness, classifiers, prosody). Report it
+alongside — never instead of — the raw score, and never against the paper's 0.276.
+
+Condition-vs-baseline deltas ship with a paired bootstrap 95% CI and p-value (Koehn 2004),
+computed on the intersection of test sentences shared with the same-dataset baseline run.
+A delta without an interval is how the n=50 "RAG dominates" artifact happened.
+
+NMM precision/recall (the paper's second metric: P 0.91 / R 0.97) is reported only when
+human-adjudicated gold labels exist at --nmm-gold (produced by scripts/nmm_annotation.py;
+see docs/nmm_annotation_rubric.md). Without gold labels the NMM columns are simply absent —
+model self-predictions are never scored against themselves.
 """
 import argparse
 import json
@@ -14,7 +24,13 @@ from pathlib import Path
 import pandas as pd
 
 from aslgloss.config import NMM_LABELS
-from aslgloss.evaluation import corpus_bleu, load_gold, nmm_scores
+from aslgloss.evaluation import (
+    bleu_components, corpus_chrf, exact_match, load_gold, nmm_scores,
+    normalize_real_asl, paired_bootstrap_bleu, rouge_l,
+)
+
+# Datasets whose references use real ASLLRP-family notation (vs. ASLG-PC12 pseudo-gloss).
+REAL_ASL_DATASETS = {"ncslgr", "asllrp"}
 
 
 def _nmm_row(preds: list[dict], gold: dict[str, dict]) -> tuple[dict, dict]:
@@ -40,6 +56,39 @@ def _nmm_row(preds: list[dict], gold: dict[str, dict]) -> tuple[dict, dict]:
     return cols, scores
 
 
+def _significance_cols(rows: list[dict], run_preds: dict[int, list[dict]]) -> None:
+    """Attach paired-bootstrap delta / CI / p-value vs. the same-dataset baseline, in place.
+
+    Pairing is by source sentence (intersection), so runs on partially different slices are
+    compared only on shared items; `sig_n` records how many. Baseline rows get blank cells.
+    """
+    by_dataset: dict[str, list[int]] = {}
+    for i, row in enumerate(rows):
+        by_dataset.setdefault(row["dataset"], []).append(i)
+
+    for dataset, idxs in by_dataset.items():
+        base_i = next((i for i in idxs if "baseline" in rows[i]["condition"]), None)
+        if base_i is None:
+            continue
+        base = {" ".join(p["source"].split()): p for p in run_preds[base_i]}
+        for i in idxs:
+            if i == base_i:
+                continue
+            paired = [
+                (base[k]["hypothesis"], p["hypothesis"], p["reference"])
+                for p in run_preds[i]
+                if (k := " ".join(p["source"].split())) in base
+            ]
+            if len(paired) < 10:
+                continue
+            hyps_a, hyps_b, refs = map(list, zip(*paired))
+            r = paired_bootstrap_bleu(hyps_a, hyps_b, refs)
+            rows[i]["delta_vs_baseline"] = round(r["delta"], 4)
+            rows[i]["delta_ci95"] = f"[{r['ci_low']:+.4f},{r['ci_high']:+.4f}]"
+            rows[i]["p_vs_baseline"] = round(r["p_value"], 3)
+            rows[i]["sig_n"] = r["n"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results-dir", default="results/")
@@ -50,22 +99,31 @@ def main():
 
     gold = load_gold(args.nmm_gold) if Path(args.nmm_gold).exists() else None
 
-    rows, nmm_rows = [], []
+    rows, nmm_rows, run_preds = [], [], {}
     for run in sorted(Path(args.results_dir).glob("*/manifest.json")):
         manifest = json.loads(run.read_text())
-        preds = [json.loads(l) for l in (run.parent / "predictions.jsonl").read_text().splitlines() if l]
+        preds = [json.loads(ln) for ln in (run.parent / "predictions.jsonl").read_text().splitlines() if ln]
         lat = sorted(p["latency_s"] for p in preds)
         tags = Counter(t for p in preds for t in p["error_tags"])
+
+        hyps = [p["hypothesis"] for p in preds]
+        refs = [p["reference"] for p in preds]
+        dataset = manifest["config"].get("dataset", "aslg_pc12")
+        bc = bleu_components(hyps, refs)
 
         row = {
             "condition": manifest["config"]["name"],
             # Self-label the dataset so a preliminary run (e.g. real-ASL NCSLGR) can never sit in the
             # summary as a bare number next to the ASLG-PC12 baseline. BLEU across datasets/conventions
             # is NOT comparable — see docs/datasets.md.
-            "dataset": manifest["config"].get("dataset", "aslg_pc12"),
+            "dataset": dataset,
             "n": len(preds),
-            "bleu4": round(corpus_bleu([p["hypothesis"] for p in preds],
-                                       [p["reference"] for p in preds]), 4),
+            "bleu4": round(bc["bleu4"], 4),
+            "p1": round(bc["p1"], 1),
+            "brevity": round(bc["brevity_penalty"], 3),
+            "chrf": round(corpus_chrf(hyps, refs), 4),
+            "exact_match": round(exact_match(hyps, refs), 4),
+            "rougeL": round(rouge_l(hyps, refs), 4),
             "avg_prompt_tokens": round(sum(p["prompt_tokens"] for p in preds) / len(preds)),
             "latency_p50_s": round(lat[len(lat) // 2], 2),
             "latency_p95_s": round(lat[int(len(lat) * 0.95)], 2),
@@ -75,6 +133,11 @@ def main():
             "prompt_hash": manifest["gloss_prompt_hash"],
             "model": manifest["config"]["llm"]["model"],
         }
+        if dataset in REAL_ASL_DATASETS:
+            n_hyps = [normalize_real_asl(h) for h in hyps]
+            n_refs = [normalize_real_asl(r) for r in refs]
+            row["bleu4_norm"] = round(bleu_components(n_hyps, n_refs)["bleu4"], 4)
+            row["chrf_norm"] = round(corpus_chrf(n_hyps, n_refs), 4)
         if gold is not None:
             cols, scores = _nmm_row(preds, gold)
             row.update(cols)
@@ -87,7 +150,10 @@ def main():
                         "n": cols["nmm_n"],
                         **{k: round(v, 4) for k, v in scores[label].items()},
                     })
+        run_preds[len(rows)] = preds
         rows.append(row)
+
+    _significance_cols(rows, run_preds)
 
     df = pd.DataFrame(rows)
     df.to_csv(args.out, index=False)
@@ -102,14 +168,16 @@ def main():
         nmm_out = Path(args.out).parent / "nmm_summary.csv"
         nmm_df = pd.DataFrame(nmm_rows)
         nmm_df.to_csv(nmm_out, index=False)
-        print(f"\nPer-label NMM scores (paper per-label targets: y/n-Q .98/.93, wh-Q .93/.98, "
-              f"negation .79/1.00, conditional .95/~.95):")
+        print("\nPer-label NMM scores (paper per-label targets: y/n-Q .98/.93, wh-Q .93/.98, "
+              "negation .79/1.00, conditional .95/~.95):")
         print(nmm_df.to_string(index=False))
         print(f"-> {nmm_out}")
 
-    print("\nReminder: BLEU here is measured against RULE-GENERATED ASLG-PC12 glosses. "
-          "It is not evidence of ASL quality. The error columns and the human coding pass "
-          "are what the argument actually rests on.")
+    print("\nReminders: (1) bleu4_norm/chrf_norm are the deliberately lossy reachable-token "
+          "scores for real-ASL notation — report alongside raw, never against the paper's 0.276. "
+          "(2) A delta with p_vs_baseline > 0.05 or a CI spanning zero is NOT a finding. "
+          "(3) BLEU on ASLG-PC12 is measured against RULE-GENERATED glosses — not ASL quality; "
+          "the error columns and the human coding pass are what the argument actually rests on.")
 
 
 if __name__ == "__main__":

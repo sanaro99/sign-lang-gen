@@ -27,6 +27,7 @@ import re
 from pathlib import Path
 
 from aslgloss.config import DATA_PROCESSED
+from aslgloss.data.asllrp_clean import clean_examples
 from aslgloss.data.loaders import load_aslg_pc12, load_asllrp, load_ncslgr, save_example_pool
 
 
@@ -59,7 +60,11 @@ def _split_aslg_pc12(args):
 
 def _split_ncslgr(args):
     """Document-level split: hold out whole stories as test so no document straddles pool/test."""
-    full = _dedup_exact(load_ncslgr())
+    raw = load_ncslgr()
+    if args.faithful_clean:
+        raw = clean_examples(raw)
+        print("Step-2 faithful cleaning applied (paper Appendix B; see data/asllrp_clean.py)")
+    full = _dedup_exact(raw)
     print(f"NCSLGR real-ASL pairs (exact-deduped): {len(full)}")
     # Group by document, preserving order; last docs (up to ~test-size sentences) become test.
     docs: dict[str, list] = {}
@@ -86,7 +91,11 @@ def _split_asllrp(args):
     reproduction still needs the later preprocessing (clean to ~1,843; Sign Bank dictionary;
     the paper's own 80/20 split). See docs/faithful_reproduction_plan.md Phase A.
     """
-    full = _dedup_exact(load_asllrp())
+    raw = load_asllrp()
+    if args.faithful_clean:
+        raw = clean_examples(raw)
+        print("Step-2 faithful cleaning applied (paper Appendix B; see data/asllrp_clean.py)")
+    full = _dedup_exact(raw)
     print(f"ASLLRP real-ASL pairs (exact-deduped): {len(full)}")
     docs: dict[str, list] = {}
     for e in full:
@@ -118,6 +127,10 @@ def main():
     ap.add_argument("--dedup-sim", type=float, default=0.9,
                     help="drop pool items with cosine >= this to ANY test item (leakage guard)")
     ap.add_argument("--embedding-model", default="sentence-transformers/all-MiniLM-L6-v2")
+    ap.add_argument("--faithful-clean", action="store_true",
+                    help="apply the paper's Step-2 gloss cleaning (ncslgr/asllrp only): drop "
+                         "classifiers + hand markers + repetition '+', expand fingerspelling, "
+                         "unify spatial loci. See src/aslgloss/data/asllrp_clean.py (PROVISIONAL).")
     ap.add_argument("--out-dir", default=None,
                     help="where to write example_pool.jsonl/test.jsonl "
                          "(default: data/processed/ for aslg_pc12, data/processed/<dataset>/ otherwise, "

@@ -72,7 +72,7 @@ def read_sheet(path: str | Path, require_complete: bool = True) -> list[dict]:
                     bad.append((r["id"], label, v))
             rows.append(row)
     if require_complete and bad:
-        detail = ", ".join(f"{i}:{l}={v!r}" for i, l, v in bad[:10])
+        detail = ", ".join(f"{i}:{lab}={v!r}" for i, lab, v in bad[:10])
         raise ValueError(
             f"{path}: {len(bad)} label cell(s) not 0/1 ({detail}{'...' if len(bad) > 10 else ''})"
         )
@@ -119,14 +119,14 @@ def agreement_report(rows1: list[dict], rows2: list[dict]) -> dict:
             "raw_agreement": sum(x == y for x, y in zip(a, b)) / len(a),
         }
     for r1, r2 in common:
-        diff = [l for l in NMM_LABELS if r1[l] != r2[l]]
+        diff = [lab for lab in NMM_LABELS if r1[lab] != r2[lab]]
         if diff:
             report["disagreements"].append({
                 "id": r1["id"],
                 "source": r1["source"],
                 "labels": diff,
-                "annotator1": {l: r1[l] for l in diff},
-                "annotator2": {l: r2[l] for l in diff},
+                "annotator1": {lab: r1[lab] for lab in diff},
+                "annotator2": {lab: r2[lab] for lab in diff},
             })
     return report
 

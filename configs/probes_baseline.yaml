@@ -1,0 +1,25 @@
+# Discourse probe run, SENTENCE-ISOLATED arm (gap G1 / milestone M3).
+# Build the split first:  python scripts/build_probe_split.py
+# Evaluation is HUMAN-CODED (coding_sheet.csv), never BLEU — probes carry no reference glosses.
+# Compare this arm against probes_context (identical except context.enabled).
+name: probes_baseline
+dataset: aslg_pc12            # pool/prompt conventions used for shots; probes are plain English
+data_dir: data/processed/probes
+split: test
+n_examples: null              # all probe sentences (54 probes -> ~130 rows)
+static_shots: 8
+constrain_vocab: false        # probe targets are judged by coders, not vocab-flagged
+gloss_prompt: baseline_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: false
+
+context:
+  enabled: false              # the sentence-isolated arm

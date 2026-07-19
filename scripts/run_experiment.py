@@ -9,10 +9,9 @@ import hashlib
 import json
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 
 from aslgloss.baseline import GlossGenerator, NMMClassifier, build_gloss_vocab
-from aslgloss.config import PROMPTS, RESULTS, ExperimentConfig
+from aslgloss.config import RESULTS, ExperimentConfig
 from aslgloss.context import ParagraphContextBuffer
 from aslgloss.data import build_paragraphs, load_example_pool
 from aslgloss.evaluation import tag_errors
@@ -28,7 +27,10 @@ def _git_sha() -> str:
 
 
 def _prompt_hash(name: str) -> str:
-    return hashlib.sha256((PROMPTS / name).read_bytes()).hexdigest()[:12]
+    # resolve_prompt allows gitignored faithful-prompt transcriptions outside prompts/ (gap G4);
+    # the hash still lands in the manifest either way — a result without a prompt hash is not a result.
+    from aslgloss.baseline.gloss import resolve_prompt
+    return hashlib.sha256(resolve_prompt(name).read_bytes()).hexdigest()[:12]
 
 
 def main():
@@ -72,6 +74,7 @@ def main():
             model_name=cfg.retrieval.embedding_model,
             k=cfg.retrieval.k,
             order=cfg.retrieval.order,
+            anonymize=cfg.retrieval.anonymize,
         )
 
     context_builder = None
@@ -90,6 +93,8 @@ def main():
         context_builder=context_builder,
         vocab=vocab,
         prompt_file=cfg.gloss_prompt,
+        shots_as_messages=cfg.shots_as_messages,
+        shot_batch_size=cfg.shot_batch_size,
     )
     nmm = None if args.no_nmm else NMMClassifier(llm, prompt_file=cfg.nmm_prompt)
 
