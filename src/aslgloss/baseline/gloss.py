@@ -12,12 +12,32 @@ examples per input instead of shipping the whole pool. Set `retriever` to enable
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
-from ..config import PROMPTS
+from ..config import PROMPTS, ROOT
 from ..data.loaders import Example
 from ..llm import LLMClient
 from .vocab import oov_tokens
+
+logger = logging.getLogger(__name__)
+
+
+def resolve_prompt(name: str):
+    """Resolve a prompt file: tracked `prompts/` first, then repo-root-relative.
+
+    The fallback lets a config point at a gitignored faithful transcription of the paper's
+    prompt wording (e.g. `data/paper_src/prompts/gloss_faithful.md`) without committing paper
+    text — open team decision #6 in docs/decision_log.md. Raises if neither exists.
+    """
+    for candidate in (PROMPTS / name, ROOT / name):
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(
+        f"Prompt {name!r} not found in {PROMPTS} or under {ROOT}. If this is a faithful "
+        "paper-prompt transcription, it lives gitignored under data/paper_src/ on the machine "
+        "that mined the TeX source (docs/primary_source_findings.md §2)."
+    )
 
 
 @dataclass
@@ -41,18 +61,26 @@ def format_shots(examples: list[Example]) -> str:
 class GlossGenerator:
     def __init__(self, llm: LLMClient, static_shots: list[Example] | None = None,
                  retriever=None, context_builder=None, vocab: set[str] | None = None,
-                 prompt_file: str = "baseline_gloss.md"):
+                 prompt_file: str = "baseline_gloss.md",
+                 shots_as_messages: bool = False, shot_batch_size: int = 200):
         """Assemble the generator. `retriever` and `context_builder` are the pluggable
         extension points: both None reproduces the paper-faithful, sentence-isolated baseline;
         supplying a retriever enables Contribution 1 (RAG) and a context_builder enables
         Contribution 2 (paragraph context). `vocab`, when given, is used to flag OOV output.
+
+        `shots_as_messages` switches to the paper's recovered "multi-prompting" structure
+        (gap G4): examples are injected as repeated ASSISTANT messages, `shot_batch_size` pairs
+        per message, instead of inlined into the user prompt. This is what makes a faithful
+        ~1,474-static-shot baseline runnable. See docs/primary_source_findings.md §2.
         """
         self.llm = llm
         self.static_shots = static_shots or []
         self.retriever = retriever              # contribution 1 — None => paper-style static
         self.context_builder = context_builder  # contribution 2 — None => sentence-isolated
         self.vocab = vocab
-        self.system = (PROMPTS / prompt_file).read_text()
+        self.shots_as_messages = shots_as_messages
+        self.shot_batch_size = max(1, shot_batch_size)
+        self.system = resolve_prompt(prompt_file).read_text()
 
     def _shots(self, text: str) -> list[Example]:
         """Pick the in-context examples: retrieved top-k if a retriever is set, else the static set."""
@@ -74,14 +102,32 @@ class GlossGenerator:
         if self.context_builder is not None:
             context_block = self.context_builder.build(example, prior_glosses=prior_glosses)
 
-        parts = [f"### Examples\n{format_shots(shots)}"]
+        target_parts = []
         if context_block:
-            parts.append(f"### Surrounding discourse (for disambiguation only — do NOT gloss this)\n{context_block}")
-        parts.append(f"### Translate this sentence\nEnglish: {example.text}\nGloss:")
-        user = "\n\n".join(parts)
+            target_parts.append(
+                f"### Surrounding discourse (for disambiguation only — do NOT gloss this)\n{context_block}")
+        target_parts.append(f"### Translate this sentence\nEnglish: {example.text}\nGloss:")
 
-        r = self.llm.complete(self.system, user)
-        gloss = r.text.replace("Gloss:", "").strip().splitlines()[0].strip() if r.text else ""
+        if self.shots_as_messages:
+            # Paper's multi-prompting: examples as repeated assistant messages, one per batch.
+            messages = [{"role": "system", "content": self.system}]
+            for i in range(0, len(shots), self.shot_batch_size):
+                messages.append({"role": "assistant",
+                                 "content": format_shots(shots[i:i + self.shot_batch_size])})
+            messages.append({"role": "user", "content": "\n\n".join(target_parts)})
+            r = self.llm.complete_messages(messages)
+        else:
+            user = "\n\n".join([f"### Examples\n{format_shots(shots)}", *target_parts])
+            r = self.llm.complete(self.system, user)
+        lines = r.text.replace("Gloss:", "").strip().splitlines() if r.text else []
+        gloss = lines[0].strip() if lines else ""
+        if len(lines) > 1:
+            # Multi-line output means the model ignored the single-line instruction; we keep only
+            # the first line, which can silently truncate a gloss — surface it (ROADMAP hardening).
+            logger.warning("Multi-line gloss output (%d lines); keeping first. text=%r first=%r",
+                           len(lines), example.text[:80], gloss[:120])
+        if not gloss:
+            logger.warning("Empty gloss output for text=%r", example.text[:80])
 
         return GlossResult(
             text=example.text,

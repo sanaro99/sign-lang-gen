@@ -16,9 +16,10 @@ read this one, then `ROADMAP.md`.
 
 ## Current status
 
-**Phase:** Faithful-reproduction prep (plan M1) — Phase A0 complete; NMM evaluation track built;
-ASLLRP access requested and pending.
-**Last updated:** 2026-07-16.
+**Phase:** Gap-closure sprint (G1/G2/G4/G7/G8/G12 of the architecture map) — measurement stack
+fixed, discourse probe set drafted, faithful-structure mechanisms built. Awaiting: probe/cleaning
+team review, NMM annotation (sheets ready), Sign Bank + remaining DAI collections, gpt-4o budget.
+**Last updated:** 2026-07-19.
 
 - Code scaffolding is complete and modular: all `src/aslgloss/` modules, four scripts, four condition
   configs, and four prompt templates are in place.
@@ -48,13 +49,16 @@ ASLLRP access requested and pending.
   `src/aslgloss/**`; scrubbed PII to role placeholders (real names → gitignored `docs/AUTHORS.local.md`);
   removed the accidental nested `asl-gloss-stage1/` duplicate.
 
-### ▶ Next (toward a graded result — order: baseline fairness → discourse probe → M1 clean run)
-- Decide **baseline fairness** (8-shot vs. paper's ~1,474-shot multi-prompting) and log it — the static
-  8-shot baseline is currently a weak comparator that flatters RAG. **Still open.**
-- Build the **hand-curated discourse probe set** (M3) so the context contribution can be honestly
-  evaluated (auto-chunked paragraphs aren't real discourse).
+### ▶ Next (toward a graded result — human steps first, they gate everything)
+- **Team-review the discourse probe set v0** (54 passages, `probes/`) → v1; then run
+  `probes_baseline` vs `probes_context` and blind-code the sheet. The context contribution's
+  honest evaluation now exists but is DRAFT until reviewed.
+- **Fill the NMM annotation sheets** (`data/annotations/nmm_sheet_a{1,2}.csv`, 100 sentences,
+  generated 2026-07-19) → κ → adjudicate → gold. Cheapest reproduction claim (target 0.91/0.97).
+- **Baseline fairness:** mechanism now exists (`shots_as_messages` multi-prompting +
+  `ncslgr_baseline_multiprompt.yaml`) — run BOTH comparators (8-shot and full-pool) and log it.
 - Run **M1**: a full baseline on a stronger model (gpt-4o and/or ASLLRP) — the preliminary local
-  numbers are not comparable to the paper's.
+  numbers are not comparable to the paper's. Verify the `gpt-4o-2024-05-13` snapshot still exists.
 
 ### ✅ Recently done (M0 prerequisites)
 - **Gloss conventions aligned to ASLG-PC12** (`X-I`/`DESC-`/kept punctuation) → `prompts/*`, `docs/gloss_conventions.md`.
@@ -155,6 +159,24 @@ ASLLRP access requested and pending.
 ## Changelog
 
 Newest first. One entry per meaningful change; keep it short.
+
+- **2026-07-19** — **Gap-closure sprint** (branch `feat/gap-closures`; six architecture-map gaps
+  worked; 49 tests pass, `ruff` fully clean for the first time). **G2 measurement stack:**
+  reachable-token secondary score (`normalize_real_asl`) + chrF + exact-match + ROUGE-L +
+  per-n-gram/BP columns + **paired-bootstrap CI & p-value vs. baseline** in `evaluate.py`;
+  dead `summarize_run` removed. **G1 discourse probes:** 54-passage DRAFT v0 in tracked `probes/`
+  (5 categories, coder questions + answers), loader/validation, `build_probe_split.py` (runnable
+  split + blind-coding sheet), `probes_baseline`/`probes_context` configs — **needs team review
+  before any graded use.** **G7:** paper Step-2 cleaning module (`data/asllrp_clean.py`,
+  `--faithful-clean`). **G8:** `retrieval.anonymize` (names→pronouns heuristic) + paired
+  anon/plain indexes + `ncslgr_rag_anon` config. **G4:** multi-prompting
+  (`shots_as_messages` → repeated assistant messages; `complete_messages`; `resolve_prompt`
+  fallback for gitignored faithful prompts; `ncslgr_baseline_multiprompt.yaml`). **G12:**
+  NMM/gloss output-parsing warnings, ROUGE/EM wired, lint debt cleared. Also: second dev
+  machine (macOS) fully bootstrapped (venv, ASLG-PC12 + NCSLGR splits, FAISS indexes,
+  Ollama + gemma3:4b); `ncslgr_rag`(+anon) smoke-run n=5 end-to-end through the new
+  evaluator (numbers meaningless, not tracked); blank NMM sheets (100 sentences × 2
+  annotators) generated. Decisions + review flags: `docs/decision_log.md` 2026-07-19 rows.
 
 - **2026-07-17** — **Four-condition ASLLRP pilot, FULL 220-sentence test set** (51 collections, local
   gemma4). BLEU-4: baseline 0.043 / rag 0.042 / context 0.041 / context+rag 0.042 — **all tied; neither

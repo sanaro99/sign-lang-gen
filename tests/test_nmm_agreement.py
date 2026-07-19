@@ -33,8 +33,8 @@ def test_sheet_roundtrip_and_incomplete_detection(tmp_path):
         read_sheet(path)
 
     filled = _filled(rows, [
-        {l: "1" if l == "yes_no_question" else "0" for l in NMM_LABELS},
-        {l: "1" if l == "negation" else "0" for l in NMM_LABELS},
+        {lab: "1" if lab == "yes_no_question" else "0" for lab in NMM_LABELS},
+        {lab: "1" if lab == "negation" else "0" for lab in NMM_LABELS},
     ])
     write_sheet(filled, path)
     back = read_sheet(path)

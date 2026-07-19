@@ -1,0 +1,30 @@
+# Faithful-structure baseline (gap G4 / open question #1: baseline fairness).
+# The paper's real baseline is NOT 8 static shots — it is ALL ~1,474 example pairs injected as
+# repeated ASSISTANT messages ("multi-prompting", recovered in Phase A0). This config reproduces
+# that STRUCTURE on NCSLGR: the full pool (~1,432 pairs) as static shots, batched into assistant
+# messages. Compare against the 8-shot static baseline AND rag conditions so RAG is no longer
+# flattered by a weak comparator. WARNING: very large prompts — slow/expensive; small local
+# models may truncate context. Record context-window limits in the decision log alongside results.
+name: ncslgr_baseline_multiprompt
+dataset: ncslgr
+data_dir: data/processed/ncslgr
+split: test
+n_examples: 50
+static_shots: 1432        # full NCSLGR pool -> the paper-style "all examples" baseline
+shots_as_messages: true   # paper's multi-prompting structure (repeated assistant messages)
+shot_batch_size: 200
+constrain_vocab: false    # no Sign Bank dictionary yet (gap G5)
+gloss_prompt: asllrp_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: false
+
+context:
+  enabled: false

@@ -9,9 +9,12 @@ Paper's reported performance — our target: precision 0.91, recall 0.97 (averag
 from __future__ import annotations
 
 import json
+import logging
 
 from ..config import NMM_LABELS, PROMPTS
 from ..llm import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 class NMMClassifier:
@@ -31,6 +34,9 @@ class NMMClassifier:
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError:
+            # All-False degradation would silently depress recall vs. the 0.97 target — say so.
+            logger.warning("NMM output was not valid JSON; defaulting all labels to False. "
+                           "sentence=%r raw=%r", text[:80], raw[:120])
             parsed = {}
         out = {label: bool(parsed.get(label, False)) for label in NMM_LABELS}
         out["_latency_s"] = r.latency_s

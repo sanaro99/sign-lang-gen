@@ -1,0 +1,27 @@
+# Discourse probe run, CONTEXT arm (gap G1 / milestone M3) — identical to probes_baseline
+# except context.enabled. The delta on human-coded probe accuracy (per category) is the
+# honest headline for Contribution 2; watch for context_leak as the counter-signal.
+name: probes_context
+dataset: aslg_pc12
+data_dir: data/processed/probes
+split: test
+n_examples: null
+static_shots: 8
+constrain_vocab: false
+gloss_prompt: context_gloss.md
+nmm_prompt: baseline_nmm.md
+
+llm:
+  provider: openai
+  model: gpt-4o-2024-05-13
+  temperature: 0.0
+  seed: 7
+
+retrieval:
+  enabled: false
+
+context:
+  enabled: true               # the one difference vs probes_baseline
+  window_before: 2
+  window_after: 1
+  include_prior_glosses: true
